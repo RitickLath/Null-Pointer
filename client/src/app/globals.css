@@ -1,1 +1,40 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* BackGround Color */
+  --color-primary-dark: #1d1a19;
+  --color-secondary-dark: #322f2e;
+  --color-tersary-dark: #484544;
+
+  --color-primary-light: #d4d4d4;
+  --color-secondary-light: #78716c;
+  --color-tersary-light: #78716c;
+
+  /* text color */
+  --color-primary-text-dark: #d4d4d4;
+  --color-secondary-text-dark: #78716c;
+  --color-tersary-text-dark: #78716c;
+
+  --color-primary-text-light: #1d1a19;
+  --color-secondary-text-light: #322f2e;
+  --color-tersary-text-light: #484544;
+
+  /* button */
+  --color-primary-btn-dark: #0e0e0e;
+  --color-primary-btn-light: #f5f5f5;
+  --color-secondary-btn-dark: #0e0e0e;
+  --color-secondary-btn-light: #f5f5f5;
+
+  /* border */
+  --color-primary-border-dark: #0e0e0e;
+  --color-primary-border-light: #f5f5f5;
+  --color-secondary-border-dark: #0e0e0e;
+  --color-secondary-border-light: #f5f5f5;
+}
+
+body {
+  overscroll-behavior: none;
+}
