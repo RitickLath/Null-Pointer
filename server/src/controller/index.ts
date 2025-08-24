@@ -2,7 +2,6 @@ export {
   getMe,
   register,
   login,
-  refresh,
   logout,
   forgotPassword,
   resetPassword,

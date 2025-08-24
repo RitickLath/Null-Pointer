@@ -3,6 +3,8 @@ import { User } from "../models/user.model";
 import { getAccessToken, getRefreshToken } from "../utils/token";
 import { LoginSchema, RegisterSchema } from "../utils/zodValidation";
 import * as z from "zod";
+import mongoose from "mongoose";
+import { sendMail } from "../utils/sendEmail";
 
 export const register = async (
   req: Request,
@@ -185,6 +187,18 @@ export const logout = async (
   next: NextFunction
 ) => {
   try {
+    // @ts-ignore
+    // From Middleware
+    const id = req?.userId;
+
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+
+    const mongooseId = new mongoose.Types.ObjectId(id as string);
+
+    await User.findByIdAndUpdate(mongooseId, { refreshToken: "" });
+
+    res.status(200).json({ success: true, data: "Logged Out Successfully" });
   } catch (error: any) {
     next(error);
   }
@@ -196,30 +210,61 @@ export const getMe = async (
   next: NextFunction
 ) => {
   try {
+    res.status(200).json({ success: true, data: "User Authenticated" });
   } catch (error: any) {
     next(error);
   }
 };
 
-export const refresh = async (
+// Redis Integration left
+export const forgotPassword = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-  } catch (error: any) {
-    next(error);
-  }
-};
+    const { email } = req.body;
 
-export const forgotPassword = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
+    // 1. Validate input with zod
+    const schema = z.object({
+      email: z.string().email(),
+    });
+    const safeParseEmail = schema.safeParse({ email });
+
+    if (!safeParseEmail.success) {
+      const err: any = new Error("Invalid Email");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    // 2. Check if user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+      const err: any = new Error("No user with provided email.");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    // 3. Generate reset token + expiry, save to user
+    const resetToken = getRefreshToken();
+    // Add resetToken to redis with key as userEmail and value as token. and expiry as 10mins.
+
+    // 4. Send reset email
+    await sendMail(
+      email,
+      "Password Reset",
+      `<a href="http://localhost:5000/api/v1/reset-password/${resetToken}">Click to Reset Password</a>`
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Check your email for password reset link.",
+    });
   } catch (error: any) {
-    next(error);
+    console.error(error);
+    const err: any = new Error("Unable to process request, please try again.");
+    err.statusCode = 500;
+    next(err);
   }
 };
 
