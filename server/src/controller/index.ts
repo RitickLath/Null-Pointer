@@ -6,4 +6,5 @@ export {
   forgotPassword,
   resetPassword,
   changePassword,
+  resetPasswordPost,
 } from "./auth.controller";

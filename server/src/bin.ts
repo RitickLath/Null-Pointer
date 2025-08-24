@@ -1,7 +1,7 @@
 import cluster from "cluster";
 import os from "os";
 import app from "./index";
-import { connectDB } from "./config";
+import { connectDB, connectRedis } from "./config";
 
 const PORT = process.env.PORT || 5000;
 
@@ -23,6 +23,7 @@ if (cluster.isPrimary) {
 } else {
   // Each worker connects to DB and runs server
   connectDB().then(() => {
+    connectRedis();
     app.listen(PORT, () => {
       console.log(`Worker ${process.pid} running on http://localhost:${PORT}`);
     });

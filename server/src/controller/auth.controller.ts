@@ -5,6 +5,7 @@ import { LoginSchema, RegisterSchema } from "../utils/zodValidation";
 import * as z from "zod";
 import mongoose from "mongoose";
 import { sendMail } from "../utils/sendEmail";
+import { getRedisClient } from "../config";
 
 export const register = async (
   req: Request,
@@ -216,7 +217,6 @@ export const getMe = async (
   }
 };
 
-// Redis Integration left
 export const forgotPassword = async (
   req: Request,
   res: Response,
@@ -245,9 +245,11 @@ export const forgotPassword = async (
       return next(err);
     }
 
-    // 3. Generate reset token + expiry, save to user
+    // 3. Generate reset token + save to Redis (10 min expiry)
     const resetToken = getRefreshToken();
-    // Add resetToken to redis with key as userEmail and value as token. and expiry as 10mins.
+
+    const client = getRedisClient();
+    await client.set(resetToken, email, { EX: 60 * 10 });
 
     // 4. Send reset email
     await sendMail(
@@ -268,23 +270,125 @@ export const forgotPassword = async (
   }
 };
 
-export const resetPassword = (
+export const resetPassword = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
+    const { id } = req.params;
+    if (!id) {
+      const err: any = new Error("Invalid Request");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    const client = getRedisClient();
+    const email = await client.get(id);
+    if (!email) {
+      const err: any = new Error("Invalid or expired token");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    res.status(200).json({ status: 200, message: "User can change password" });
   } catch (error: any) {
     next(error);
   }
 };
 
-export const changePassword = (
+export const resetPasswordPost = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    if (!id || !newPassword) {
+      const err: any = new Error("Token and new password are required");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    // 1. Check token in Redis
+    const client = getRedisClient();
+    const email = await client.get(id);
+    if (!email) {
+      const err: any = new Error("Invalid or expired token");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    // 2. Find user
+    const user = await User.findOne({ email }).select("+password");
+    if (!user) {
+      const err: any = new Error("User not found");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    // 3. update  new password (hook will hash)
+    user.password = newPassword;
+    await user.save();
+
+    // 4. Delete token from Redis
+    await client.del(id);
+
+    res.status(200).json({
+      success: true,
+      message: "Password has been reset successfully. Please log in.",
+    });
+  } catch (error: any) {
+    console.error(error);
+    const err: any = new Error("Unable to reset password. Please try again.");
+    err.statusCode = 500;
+    next(err);
+  }
+};
+
+export const changePassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      const err: any = new Error("Old and new password are required");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    // @ts-ignore 
+    const userId = req.userId;
+
+    
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+      const err: any = new Error("User not found");
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    // @ts-ignore
+    const isPasswordCorrect = await user.comparePassword(oldPassword);
+    if (!isPasswordCorrect) {
+      const err: any = new Error("Old password is incorrect");
+      err.statusCode = 400;
+      return next(err);
+    }
+
+    // will be hashed by pre-save hook
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password changed successfully",
+    });
   } catch (error: any) {
     next(error);
   }
