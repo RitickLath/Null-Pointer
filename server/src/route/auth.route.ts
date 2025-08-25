@@ -1,37 +1,28 @@
 import { Router } from "express";
-import {
-  changePassword,
-  forgotPassword,
-  getMe,
-  login,
-  logout,
-  register,
-  resetPassword,
-  resetPasswordPost,
-} from "../controller";
+import * as Auth from "../controller/auth.controller";
 import { isAuthenticated } from "../middleware";
 
 export const AuthRouter = Router();
 
-AuthRouter.get("/me", isAuthenticated, getMe);
+AuthRouter.get("/me", isAuthenticated, Auth.getMe);
 
 // Register new account
-AuthRouter.post("/register", register);
+AuthRouter.post("/register", Auth.register);
 
 // Login and get access + refresh token
-AuthRouter.post("/login", login);
+AuthRouter.post("/login", Auth.login);
 
 // Logout (invalidate refresh token)
-AuthRouter.post("/logout", isAuthenticated, logout);
+AuthRouter.post("/logout", isAuthenticated, Auth.logout);
 
 // Forgot password (send reset link) (when not logged in: so send email)
-AuthRouter.post("/forgot-password", forgotPassword);
+AuthRouter.post("/forgot-password", Auth.forgotPassword);
 
 // Validate reset token before showing password form
-AuthRouter.get("/reset-password/:id", resetPassword);
+AuthRouter.get("/reset-password/:id", Auth.resetPassword);
 
 // Update password after successful validation
-AuthRouter.post("/reset-password/:id", resetPasswordPost);
+AuthRouter.post("/reset-password/:id", Auth.resetPasswordPost);
 
 // Change password (while logged in) (by providing old password only: no mail sent.)
-AuthRouter.post("/change-password", isAuthenticated, changePassword);
+AuthRouter.post("/change-password", isAuthenticated, Auth.changePassword);
